@@ -11,7 +11,7 @@
 Log what you watch, and StreamWise works out what each subscription really costs per hour, which ones are poor value, and which ones you haven't used lately.
 
 - 🔎 **Search any film or series.** Runtime and where it streams in your country are filled in for you (via TMDB).
-- 💶 **Cost per hour, per service.** Prices for the Netherlands are pre-filled and editable for anywhere else.
+- 💶 **Cost per hour, per service.** Pick your plan from a list. Real plans and prices for 11 services across 12 countries (NL, BE, DE, FR, ES, PT, IT, IE, UK, US, CA, BR), in local currency, with “Other amount” for bundles and deals.
 - 💤 **Unused lately.** Nothing watched in 30 days? It flags it, and shows what pausing would save over a year.
 - 📅 **What's coming.** For series, it shows when the next episode or season arrives.
 - 🔒 **Private by design.** No accounts and no database. Your log stays in your browser.

@@ -67,7 +67,7 @@ button, input, select { font: inherit; color: inherit; }
 
 /* top bar */
 .top { display: flex; align-items: center; gap: 10px; padding: calc(14px + env(safe-area-inset-top)) 0 10px; position: sticky; top: 0; background: var(--bg); z-index: 5; }
-.top img { width: 36px; height: 36px; border-radius: 10px; }
+.top img { width: 40px; height: 40px; object-fit: contain; }
 .brand { font: 600 1.3rem/1 var(--serif); letter-spacing: -.01em; }
 .demo-pill { margin-left: auto; font-size: .75rem; font-weight: 600; color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, transparent); padding: 5px 10px; border-radius: 999px; }
 
@@ -157,6 +157,9 @@ h3 { font-size: 1rem; }
 .svc .name { font-weight: 600; }
 .svc .detail { display: flex; gap: 8px; margin-top: 8px; grid-column: 1 / -1; }
 .svc .detail label { flex: 1; font-size: .75rem; color: var(--muted); display: grid; gap: 4px; }
+.svc .detail { flex-wrap: wrap; }
+.svc .detail label.grow { flex-basis: 100%; }
+.svc .detail select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; width: 100%; color: var(--ink); }
 .svc .detail input { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; width: 100%; }
 .switch { position: relative; width: 48px; height: 28px; flex: none; }
 .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }

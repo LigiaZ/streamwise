@@ -26,7 +26,8 @@ class MatchService(unittest.TestCase):
             "Amazon Prime Video": "prime", "Amazon Prime Video with Ads": "prime",
             "Disney Plus": "disney", "HBO Max": "hbo", "Max": "hbo",
             "Apple TV Plus": "apple", "Apple TV+": "apple", "SkyShowtime": "skyshowtime",
-            "Videoland": "videoland", "NPO Plus": "npo",
+            "Videoland": "videoland", "NPO Plus": "npo", "Crunchyroll": "crunchyroll",
+            "Paramount Plus": "paramount", "Peacock Premium": "peacock",
         }
         for name, sid in cases.items():
             self.assertEqual(match_service(name), sid, name)
@@ -35,10 +36,30 @@ class MatchService(unittest.TestCase):
         for name in ["HBO Max Amazon Channel", "Paramount Plus Apple TV Channel", "Pathé Thuis", "Maxdome"]:
             self.assertIsNone(match_service(name), name)
 
-    def test_catalog_has_prices_for_nl_only(self):
-        nl = {s["id"]: s["price"] for s in catalog("NL")["services"]}
-        self.assertEqual(nl["prime"], 4.99)
-        self.assertTrue(all(s["price"] is None for s in catalog("BR")["services"]))
+    def test_catalog_lists_plans_per_country(self):
+        nl = {s["id"]: s for s in catalog("NL")["services"]}
+        self.assertEqual([p["name"] for p in nl["netflix"]["plans"]], ["Basic", "Standard", "Premium"])
+        self.assertEqual(nl["netflix"]["default"], {"name": "Standard", "price": 15.99})
+        self.assertEqual(nl["npo"]["default"]["price"], 3.49)  # single plan -> that plan
+        self.assertIn("crunchyroll", nl)
+
+    def test_catalog_only_lists_services_sold_there(self):
+        nl = {s["id"] for s in catalog("NL")["services"]}
+        us = {s["id"] for s in catalog("US")["services"]}
+        self.assertIn("videoland", nl)
+        self.assertNotIn("videoland", us)
+        self.assertIn("peacock", us)
+        self.assertNotIn("peacock", nl)
+
+    def test_every_country_has_prices_in_its_currency(self):
+        from streamwise.catalog import COUNTRIES
+        for code in COUNTRIES:
+            c = catalog(code)
+            self.assertGreaterEqual(len(c["services"]), 5, code)
+            for s in c["services"]:
+                prices = [p["price"] for p in s["plans"]]
+                self.assertTrue(prices and all(p > 0 for p in prices), (code, s["id"]))
+                self.assertEqual(prices, sorted(prices), (code, s["id"]))  # cheapest first
         self.assertEqual(catalog("BR")["currency"], "BRL")
 
 

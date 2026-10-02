@@ -53,7 +53,8 @@
   }
   function svcInfo(id) {
     var found = catalog && catalog.services.filter(function (s) { return s.id === id; })[0];
-    return found || { id: id, name: id, color: "#888" };
+    var known = catalog && catalog.all && catalog.all[id];
+    return found || (known ? { id: id, name: known.name, color: known.color } : { id: id, name: id, color: "#888" });
   }
   function initials(name) {
     return name.replace(/[^A-Za-z0-9 ]/g, "").split(" ").map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase();
@@ -188,39 +189,83 @@
   }
 
   // ---------------------------------------------------------------- services
+  var OTHER = "__other";
+
+  function plansFor(id) {
+    var s = catalog.services.filter(function (x) { return x.id === id; })[0];
+    return s ? s.plans : [];
+  }
+  // Which plan is this subscription on? By saved name, else by matching price, else "Other amount".
+  function currentPlan(id) {
+    var mine = state.services[id] || {}, plans = plansFor(id);
+    if (mine.plan === OTHER) return OTHER;
+    var byName = plans.filter(function (p) { return p.name === mine.plan; })[0];
+    if (byName) return byName.name;
+    var byPrice = plans.filter(function (p) { return p.price === Number(mine.price); })[0];
+    return byPrice ? byPrice.name : OTHER;
+  }
+
   function renderServices() {
     $("#country").innerHTML = catalog.countries.map(function (c) {
       return '<option value="' + c.code + '"' + (c.code === state.country ? " selected" : "") + ">" + esc(c.name) + "</option>";
     }).join("");
-    $("#price-note").textContent = catalog.prices_as_of
-      ? "Prices are the standard plans as of " + new Date(catalog.prices_as_of + "-01T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" }) + ". Change them to what you actually pay."
-      : "We don’t have prices for this country yet. Type in what you pay.";
-    $("#service-list").innerHTML = catalog.services.map(function (s) {
-      var mine = state.services[s.id] || {};
-      var on = !!mine.on;
-      var price = mine.price != null ? mine.price : (s.price != null ? s.price : "");
-      return '<div class="svc">' + logo(s.id) +
-        '<div><div class="name">' + esc(s.name) + '</div><div class="fine" style="margin:0">' + (price !== "" ? money(Number(price)) + " / month" : "Add your price") + "</div></div>" +
-        '<label class="switch"><input type="checkbox" data-svc="' + s.id + '"' + (on ? " checked" : "") + ' aria-label="I pay for ' + esc(s.name) + '"><span></span></label>' +
+    $("#price-note").textContent = "Plans and prices as of " +
+      new Date(catalog.prices_as_of + "-01T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" }) +
+      ". Pick “Other amount” if you pay something different, like a bundle or a yearly deal.";
+
+    // Services sold in this country, plus any you still have switched on from elsewhere.
+    var listed = catalog.services.map(function (s) { return s.id; });
+    var extra = activeServices().filter(function (id) { return listed.indexOf(id) < 0; });
+    $("#service-list").innerHTML = listed.concat(extra).map(function (id) {
+      var s = svcInfo(id), mine = state.services[id] || {}, on = !!mine.on, plans = plansFor(id);
+      var plan = on ? currentPlan(id) : null;
+      var price = on ? Number(mine.price) : (s.default ? s.default.price : null);
+      var sub = on
+        ? (plan === OTHER ? "Other amount" : esc(plan)) + " · " + (isNaN(price) ? "–" : money(price)) + " / month"
+        : (plans.length > 1 ? plans.length + " plans · from " + money(plans[0].price) : plans.length ? money(plans[0].price) + " / month" : "Not listed in this country");
+      var options = plans.map(function (p) {
+        return '<option value="' + esc(p.name) + '"' + (p.name === plan ? " selected" : "") + ">" + esc(p.name) + " · " + money(p.price) + "</option>";
+      }).join("") + '<option value="' + OTHER + '"' + (plan === OTHER ? " selected" : "") + ">Other amount…</option>";
+      return '<div class="svc">' + logo(id) +
+        '<div><div class="name">' + esc(s.name) + '</div><div class="fine" style="margin:0">' + sub + "</div></div>" +
+        '<label class="switch"><input type="checkbox" data-svc="' + id + '"' + (on ? " checked" : "") + ' aria-label="I pay for ' + esc(s.name) + '"><span></span></label>' +
         (on ? '<div class="detail">' +
-          '<label>Price per month<input type="number" step="0.01" min="0" inputmode="decimal" data-price="' + s.id + '" value="' + esc(price) + '"></label>' +
-          '<label>Subscribed since<input type="date" data-since="' + s.id + '" value="' + esc(mine.since || "") + '"></label>' +
+          '<label class="grow">Plan<select data-plan="' + id + '">' + options + "</select></label>" +
+          (plan === OTHER ? '<label>Amount per month<input type="number" step="0.01" min="0" inputmode="decimal" data-price="' + id + '" value="' + esc(isNaN(price) ? "" : price) + '"></label>' : "") +
+          '<label>Subscribed since<input type="date" data-since="' + id + '" value="' + esc(mine.since || "") + '"></label>' +
         "</div>" : "") +
       "</div>";
     }).join("");
   }
 
+  // After switching country, move each subscription to the same-named plan there (if any).
+  function remapPlans() {
+    activeServices().forEach(function (id) {
+      var mine = state.services[id], p = plansFor(id).filter(function (x) { return x.name === mine.plan; })[0];
+      if (p) mine.price = p.price;
+      else if (mine.plan !== OTHER) { var d = svcInfo(id).default; if (d) { mine.plan = d.name; mine.price = d.price; } else mine.plan = OTHER; }
+    });
+  }
+
   document.addEventListener("change", function (ev) {
     var t = ev.target;
     if (t.id === "country") {
-      state.country = t.value; save();
-      loadCatalog().then(renderServices);
+      state.country = t.value;
+      loadCatalog().then(function () { remapPlans(); save(); renderServices(); });
     } else if (t.dataset.svc) {
-      var id = t.dataset.svc, s = svcInfo(id);
-      var mine = state.services[id] || { price: s.price, since: today() };
+      var id = t.dataset.svc, d = svcInfo(id).default;
+      var mine = state.services[id] || { since: today() };
       mine.on = t.checked;
-      if (mine.price == null) mine.price = s.price;
+      if (t.checked && mine.price == null) {
+        if (d) { mine.plan = d.name; mine.price = d.price; } else { mine.plan = OTHER; mine.price = null; }
+      }
       state.services[id] = mine; save(); renderServices();
+    } else if (t.dataset.plan) {
+      var sid = t.dataset.plan, chosen = plansFor(sid).filter(function (p) { return p.name === t.value; })[0];
+      state.services[sid].plan = t.value;
+      if (chosen) state.services[sid].price = chosen.price;
+      save(); renderServices();
+      if (t.value === OTHER) { var inp = document.querySelector('[data-price="' + sid + '"]'); if (inp) inp.focus(); }
     } else if (t.dataset.price) {
       state.services[t.dataset.price].price = t.value === "" ? null : Number(t.value); save(); renderServices();
     } else if (t.dataset.since) {
@@ -390,10 +435,10 @@
     state = {
       country: "NL", demo: true, started: true, log: log.map(function (e, i) { e.id = "demo" + i; return e; }),
       services: {
-        netflix: { on: true, price: 15.99, since: daysAgo(400) },
-        prime: { on: true, price: 4.99, since: daysAgo(400) },
-        disney: { on: true, price: 10.99, since: daysAgo(300) },
-        hbo: { on: true, price: 11.99, since: daysAgo(200) },
+        netflix: { on: true, plan: "Standard", price: 15.99, since: daysAgo(400) },
+        prime: { on: true, plan: "Prime Video", price: 4.99, since: daysAgo(400) },
+        disney: { on: true, plan: "Standard", price: 10.99, since: daysAgo(300) },
+        hbo: { on: true, plan: "Standard", price: 11.99, since: daysAgo(200) },
       },
     };
     save();
