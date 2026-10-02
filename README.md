@@ -13,7 +13,8 @@ Log what you watch, and StreamWise works out what each subscription really costs
 - ⏸️ **Pause suggestions.** Nothing watched in 30 days? It tells you, and what pausing would save over a year.
 - 📅 **What's coming.** For series, it shows when the next episode or season arrives.
 - 📱 **Install it like an app.** On iPhone: Share → *Add to Home Screen*.
-- 🔒 **Private by design.** No accounts and no database. Your log stays in your browser.
+- 🔒 **Private by design.** Use it without an account and your log never leaves your browser.
+- 🔄 **Or sign in to sync** (invite-only): your data follows you across devices, and a daily job emails you when a service sits unused or a show you follow gets a new season, with a nudge to resubscribe if you've paused that service.
 
 ## How it decides
 
@@ -25,6 +26,24 @@ Log what you watch, and StreamWise works out what each subscription really costs
 | **Pause it** | nothing watched for 30+ days |
 | **Too new to tell** | subscribed less than 14 days ago |
 
+## Two modes, one app
+
+| | Signed out (default) | Signed in |
+|---|---|---|
+| Where your data lives | `localStorage` in this browser only | your account in a Turso (libSQL) database, plus a local copy |
+| Works across devices | no (export/import a backup) | yes |
+| Email reminders | no | yes: pause suggestions and new seasons of shows you follow |
+| Who can use it | anyone | invite-only: the first account needs `SETUP_SECRET`, then the owner creates invite links |
+
+### Security notes
+
+- Passwords: PBKDF2-HMAC-SHA256, 600,000 iterations, per-user salt. Wrong-email and wrong-password take the same time and give the same error.
+- Sessions: HMAC-signed, `HttpOnly; Secure; SameSite=Lax` cookie, 30-day expiry.
+- Brute force: 5 failed logins per email (20 per IP) locks sign-in for 15 minutes.
+- CSRF: state-changing requests need a custom `X-StreamWise` header, which cross-site forms can't send.
+- Sync uses optimistic versioning, so two devices can't silently overwrite each other.
+- All secrets come from environment variables. None are in the repo.
+
 ## Architecture
 
 ```
@@ -35,6 +54,9 @@ streamwise/
   tmdb.py                       TMDB client: search, runtime, providers, next episode
   report.py                     cost-per-hour, verdicts, savings, monthly history
   web.py                        endpoint logic shared by Vercel and the dev server
+  db.py                         Turso over HTTP in production, SQLite locally (stdlib only)
+  accounts.py                   passwords, sessions, invites, rate limiting, data sync
+  alerts.py                     the daily job: pause + new-season emails via Resend
 tests/                          unit tests (no network needed)
 dev.py                          local server that mirrors Vercel
 ```
@@ -51,9 +73,25 @@ python3 -m unittest discover tests
 
 Python 3.9+ and no dependencies. Without a TMDB token, everything except title search still works: use *Add it manually* or *Try it with sample data*.
 
+Locally, sign-in uses a SQLite file in `.data/` (git-ignored). Open `/?setup` to create the first account.
+
 ## Deploy
 
-Import the repo in Vercel (no build settings needed) and add `TMDB_READ_TOKEN` under **Settings → Environment Variables**.
+Import the repo in Vercel (no build settings needed), then add these under **Settings → Environment Variables**:
+
+| Variable | Needed for | Value |
+|---|---|---|
+| `TMDB_READ_TOKEN` | title search | TMDB "API Read Access Token" |
+| `TURSO_DATABASE_URL` | sign-in + sync | `libsql://<db>-<org>.turso.io` |
+| `TURSO_AUTH_TOKEN` | sign-in + sync | `turso db tokens create <db>` |
+| `SESSION_SECRET` | sign-in | a long random string (`openssl rand -hex 32`) |
+| `SETUP_SECRET` | creating the first account | any code you choose; open `/?setup` and enter it |
+| `CRON_SECRET` | the daily job | a long random string (Vercel sends it to `/api/cron` automatically) |
+| `RESEND_API_KEY` | reminder emails | from resend.com |
+| `ALERTS_FROM` | optional | e.g. `StreamWise <hello@yourdomain>` once your domain is verified in Resend |
+| `APP_URL` | optional | the app's URL, linked from emails |
+
+Without the Turso variables the app runs in signed-out mode only.
 
 ## Credits
 
