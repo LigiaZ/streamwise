@@ -350,7 +350,7 @@
     show(current === "services" ? "overview" : current);
   });
 
-  // ---------------------------------------------------------------- backup / demo / reset
+  // ---------------------------------------------------------------- backup / sample data / reset
   function exportBackup() {
     var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     var a = document.createElement("a");

@@ -6,7 +6,7 @@
 
 **Is your streaming worth what you pay for it?**
 
-> This is the **browser demo**. A full mobile app version (accounts, sync across devices, new-season reminders) is in progress.
+> StreamWise works fully in your browser today. A mobile app (sync across devices, new-season reminders) is coming next.
 
 Log what you watch, and StreamWise works out what each subscription really costs per hour, which ones are poor value, and which ones to pause until there's something new to watch.
 
