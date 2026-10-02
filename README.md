@@ -61,7 +61,7 @@ tests/                          unit tests (no network needed)
 dev.py                          local server that mirrors Vercel
 ```
 
-The browser sends the log to `/api/report` only to compute the numbers. Nothing is stored server-side. The TMDB token lives in a server environment variable and never reaches the browser.
+When signed out, the browser sends the log to `/api/report` only to compute the numbers, and nothing is stored server-side. The TMDB token lives in a server environment variable and never reaches the browser.
 
 ## Run it locally
 
