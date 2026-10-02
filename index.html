@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>StreamWise: is your streaming worth it?</title>
+  <meta name="description" content="Log what you watch, see what each streaming subscription really costs per hour, and know when to pause one. Your data stays on your device.">
+  <meta name="theme-color" content="#fff7f0" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14162b" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="StreamWise">
+  <meta property="og:description" content="What does each streaming subscription really cost per hour you watch?">
+  <meta property="og:image" content="/img/icon-512.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="StreamWise">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <img src="/img/icon-192.png" width="36" height="36" alt="">
+    <span class="brand">StreamWise</span>
+    <span class="demo-pill" id="demo-pill" hidden>Sample data</span>
+  </header>
+
+  <main id="main">
+    <!-- WELCOME (first run) -->
+    <section class="view" id="view-welcome" hidden>
+      <img class="hero-art" src="/img/streamwise-logo.png" width="434" height="354" alt="StreamWise: a cartoon TV with a girl waving from the screen">
+      <h1>Is your streaming worth it?</h1>
+      <p class="lead">Log what you watch. StreamWise works out what each subscription really costs per hour, and tells you which ones to pause until there’s something new.</p>
+      <div class="stack">
+        <button class="btn primary" data-action="start">Set up my services</button>
+        <button class="btn" data-action="demo">Try it with sample data</button>
+      </div>
+      <p class="fine">No account. Everything you log stays on this device.</p>
+    </section>
+
+    <!-- OVERVIEW -->
+    <section class="view" id="view-overview" hidden>
+      <div class="summary" id="summary"></div>
+      <div id="cards" class="cards"></div>
+      <p class="fine center" id="report-meta"></p>
+    </section>
+
+    <!-- WATCHED -->
+    <section class="view" id="view-log" hidden>
+      <div class="view-head"><h2>What you watched</h2></div>
+      <div id="log-list"></div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="view" id="view-services" hidden>
+      <div class="view-head"><h2>Your services</h2></div>
+      <label class="field">Country
+        <select id="country"></select>
+      </label>
+      <p class="fine" id="price-note"></p>
+      <div id="service-list" class="service-list"></div>
+      <div class="data-tools">
+        <h3>Your data</h3>
+        <p class="fine">Stored only in this browser. Export a backup to move it to another device.</p>
+        <div class="row-buttons">
+          <button class="btn small" data-action="export">Export backup</button>
+          <label class="btn small">Import backup<input type="file" id="import" accept="application/json" hidden></label>
+          <button class="btn small danger" data-action="reset">Start over</button>
+        </div>
+      </div>
+      <p class="fine attribution">Title data and where-to-watch from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a> and JustWatch. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+    </section>
+  </main>
+
+  <button class="fab" data-action="add" id="fab" hidden aria-label="Add something you watched">+</button>
+
+  <nav class="tabs" id="tabs" hidden>
+    <button data-tab="overview" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm0 7h6v-5H4zm10 0h6v-9h-6zm0-16v5h6V4z"/></svg>Overview</button>
+    <button data-tab="log"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>Watched</button>
+    <button data-tab="services"><svg viewBox="0 0 24 24"><path d="M21 6H3v12h18zm-2 10H5V8h14zM8 20h8v2H8z"/></svg>Services</button>
+  </nav>
+</div>
+
+<!-- ADD SHEET -->
+<dialog class="sheet" id="add-sheet" aria-labelledby="add-title">
+  <form method="dialog" class="sheet-inner" id="add-form">
+    <div class="sheet-head">
+      <h2 id="add-title">Add what you watched</h2>
+      <button class="icon-btn" value="cancel" aria-label="Close">✕</button>
+    </div>
+
+    <div id="step-search">
+      <input type="search" id="q" placeholder="Search a film or series…" autocomplete="off" enterkeyhint="search">
+      <div id="results" class="results"></div>
+      <button type="button" class="link" data-action="manual">Can’t find it? Add it manually</button>
+    </div>
+
+    <div id="step-details" hidden>
+      <div class="picked" id="picked"></div>
+      <div id="where" class="where"></div>
+      <label class="field" id="episodes-field">Episodes watched
+        <input type="number" id="episodes" min="1" max="200" value="1" inputmode="numeric">
+      </label>
+      <label class="field" id="title-field" hidden>Title
+        <input type="text" id="manual-title" maxlength="120">
+      </label>
+      <label class="field">Minutes
+        <input type="number" id="minutes" min="1" max="20000" inputmode="numeric" required>
+      </label>
+      <label class="field">Watched on
+        <select id="service" required></select>
+      </label>
+      <label class="field">Date
+        <input type="date" id="date" required>
+      </label>
+      <div class="row-buttons">
+        <button type="button" class="btn" data-action="back">Back</button>
+        <button type="submit" class="btn primary" value="save" id="save-btn">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
