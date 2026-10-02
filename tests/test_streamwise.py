@@ -122,7 +122,7 @@ class Report(unittest.TestCase):
         row = rep["services"][0]
         self.assertEqual((row["verdict"], row["idle_days"], row["hours_30d"]), ("pause", 45, 0))
         self.assertEqual(rep["yearly_savings"], 143.88)
-        self.assertIn("Pause HBO Max", rep["summary"])
+        self.assertIn("HBO Max hasn’t been used lately", rep["summary"])
 
     def test_never_watched_old_subscription_is_paused(self):
         rep = self.report([{"id": "apple", "price": 9.99, "since": days_ago(90)}], [])

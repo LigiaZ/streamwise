@@ -5,7 +5,7 @@ for each service:
 
   * hours watched in the last 30 days, and the cost per hour that implies;
   * how long it has been idle;
-  * a verdict — great / ok / poor value, pause it, or too new to judge;
+  * a verdict — great / ok / poor value, unused lately, or too new to judge;
   * how much pausing the idle ones would save over a year.
 
 The benchmark for "poor value" is renting: a film costs about 4.99 for two
@@ -33,7 +33,7 @@ VERDICTS = {
     "great": "Great value",
     "ok": "Worth it",
     "poor": "Poor value",
-    "pause": "Pause it",
+    "pause": "Unused lately",
     "new": "Too new to tell",
 }
 
@@ -63,7 +63,7 @@ def _money(x: Optional[float]) -> Optional[float]:
 
 def _verdict(price: float, hours: float, idle_days: int, age_days: Optional[int], cur: str = "€") -> tuple:
     if idle_days >= IDLE_DAYS:
-        return "pause", f"Nothing watched in {idle_days} days. Pause it and come back when there’s something new."
+        return "pause", f"Nothing watched in {idle_days} days. You could pause it until something new comes out."
     if age_days is not None and age_days < NEW_DAYS and hours < 2:
         return "new", "Give it a couple of weeks before judging."
     if price <= 0:
@@ -165,7 +165,7 @@ def _summary(rows: list, pause: list, poor: list, savings: float, cur: str = "�
     if not rows:
         return "Add the services you pay for to get started."
     if pause:
-        s = f"Pause {_names(pause)} and you’d save {cur}{savings:,.0f} a year."
+        s = f"{_names(pause)} {'hasn’t' if len(pause) == 1 else 'haven’t'} been used lately. Pausing would save {cur}{savings:,.0f} a year."
         if poor:
             s += f" {_names(poor)} {'is' if len(poor) == 1 else 'are'} also costing more than renting."
         return s

@@ -8,11 +8,11 @@
 
 > StreamWise works fully in your browser today. A mobile app (sync across devices, new-season reminders) is coming next.
 
-Log what you watch, and StreamWise works out what each subscription really costs per hour, which ones are poor value, and which ones to pause until there's something new to watch.
+Log what you watch, and StreamWise works out what each subscription really costs per hour, which ones are poor value, and which ones you haven't used lately.
 
 - 🔎 **Search any film or series.** Runtime and where it streams in your country are filled in for you (via TMDB).
 - 💶 **Cost per hour, per service.** Prices for the Netherlands are pre-filled and editable for anywhere else.
-- ⏸️ **Pause suggestions.** Nothing watched in 30 days? It tells you, and what pausing would save over a year.
+- 💤 **Unused lately.** Nothing watched in 30 days? It flags it, and shows what pausing would save over a year.
 - 📅 **What's coming.** For series, it shows when the next episode or season arrives.
 - 🔒 **Private by design.** No accounts and no database. Your log stays in your browser.
 
@@ -23,7 +23,7 @@ Log what you watch, and StreamWise works out what each subscription really costs
 | **Great value** | under €1.00 per hour watched in the last 30 days |
 | **Worth it** | under €2.50 per hour, cheaper than renting what you watched (≈ €4.99 per 2-hour film) |
 | **Poor value** | above €2.50 per hour, so renting would have cost less |
-| **Pause it** | nothing watched for 30+ days |
+| **Unused lately** | nothing watched for 30+ days |
 | **Too new to tell** | subscribed less than 14 days ago |
 
 ## Architecture

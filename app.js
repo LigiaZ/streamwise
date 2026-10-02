@@ -133,7 +133,7 @@
       '<div class="stats">' +
         "<div><b>" + r.hours_30d + " h</b><span>watched in 30 days</span></div>" +
         "<div><b>" + (r.cost_per_hour == null ? "–" : money(r.cost_per_hour)) + "</b><span>per hour overall</span></div>" +
-        "<div><b>" + (save ? money(r.yearly_savings, 0) : "–") + "</b><span>yearly saving if you pause</span></div>" +
+        "<div><b>" + (save ? money(r.yearly_savings, 0) : "–") + "</b><span>a year on unused services</span></div>" +
       "</div>" +
       '<p class="says' + (save ? " save" : "") + '">' + esc(r.summary) + "</p>";
 
