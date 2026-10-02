@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from streamwise import tmdb  # noqa: E402
 from streamwise.catalog import catalog, match_service  # noqa: E402
 from streamwise.report import build_report  # noqa: E402
-from streamwise.web import Request, report_endpoint, search_endpoint, title_endpoint  # noqa: E402
+from streamwise.web import report_endpoint, search_endpoint, title_endpoint  # noqa: E402
 
 TODAY = date(2026, 10, 2)
 
@@ -160,26 +160,26 @@ class Report(unittest.TestCase):
 
 class Endpoints(unittest.TestCase):
     def test_search_validates_query(self):
-        self.assertEqual(search_endpoint(Request(params={"q": "a"})).status, 400)
+        self.assertEqual(search_endpoint({"q": "a"})[0], 400)
 
     def test_title_validates_params(self):
-        self.assertEqual(title_endpoint(Request(params={"kind": "person", "id": "1"})).status, 400)
-        self.assertEqual(title_endpoint(Request(params={"kind": "movie", "id": "1;drop"})).status, 400)
+        self.assertEqual(title_endpoint({"kind": "person", "id": "1"})[0], 400)
+        self.assertEqual(title_endpoint({"kind": "movie", "id": "1;drop"})[0], 400)
 
     def test_missing_token_is_a_friendly_503(self):
         old = os.environ.pop("TMDB_READ_TOKEN", None)
         try:
-            res = search_endpoint(Request(params={"q": "lord of the rings"}))
-            self.assertEqual(res.status, 503)
-            self.assertIn("manually", res.payload["error"])
+            status, payload, _ = search_endpoint({"q": "lord of the rings"})
+            self.assertEqual(status, 503)
+            self.assertIn("manually", payload["error"])
         finally:
             if old is not None:
                 os.environ["TMDB_READ_TOKEN"] = old
 
     def test_report_endpoint_uses_country_currency(self):
-        res = report_endpoint(Request(body={"country": "GB", "services": [], "log": [], "today": "2026-10-02"}))
-        self.assertEqual((res.status, res.payload["currency"]), (200, "GBP"))
-        self.assertEqual(report_endpoint(Request(body={"services": "nope"})).status, 400)
+        status, payload, _ = report_endpoint({}, {"country": "GB", "services": [], "log": [], "today": "2026-10-02"})
+        self.assertEqual((status, payload["currency"]), (200, "GBP"))
+        self.assertEqual(report_endpoint({}, {"services": "nope"})[0], 400)
 
 
 if __name__ == "__main__":

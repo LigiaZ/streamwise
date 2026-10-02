@@ -1,6 +1,5 @@
-// StreamWise front end. Signed out, everything lives in localStorage on this device and the
-// Python API only looks up titles (TMDB) and computes the report. Signed in, the same state is
-// also synced to the user's account so it follows them across devices.
+// StreamWise front end. Everything the user logs lives in localStorage on their device;
+// the Python API only looks up titles (TMDB) and computes the report from what we send it.
 (function () {
   "use strict";
 
@@ -10,12 +9,9 @@
   var catalog = null;          // { services: [...], countries: [...], currency, prices_as_of }
   var picked = null;           // title chosen in the add sheet
   var searchTimer = null, searchSeq = 0;
-  var user = null;             // signed-in user, or null
-  var sync = loadSync();       // { userId, version } of the last state we agreed with the server
-  var pushTimer = null, pushing = false, pushAgain = false;
 
   // ---------------------------------------------------------------- storage
-  function blank() { return { country: "NL", services: {}, log: [], follows: [], demo: false, started: false }; }
+  function blank() { return { country: "NL", services: {}, log: [], demo: false, started: false }; }
   function load() {
     try {
       var s = JSON.parse(localStorage.getItem(KEY));
@@ -23,18 +19,8 @@
     } catch (e) {}
     return blank();
   }
-  function save(opts) {
+  function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-    if (!(opts && opts.local)) schedulePush();
-  }
-  function loadSync() {
-    try { return JSON.parse(localStorage.getItem(KEY + ":sync")) || { userId: null, version: 0 }; } catch (e) { return { userId: null, version: 0 }; }
-  }
-  function saveSync() {
-    try { localStorage.setItem(KEY + ":sync", JSON.stringify(sync)); } catch (e) {}
-  }
-  function syncable() {
-    return { country: state.country, services: state.services, log: state.log, follows: state.follows || [] };
   }
   function activeServices() {
     return Object.keys(state.services).filter(function (id) { return state.services[id].on; });
@@ -85,7 +71,7 @@
     toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2600);
   }
   function api(path, body) {
-    var opts = body ? { method: "POST", headers: { "Content-Type": "application/json", "X-StreamWise": "1" }, body: JSON.stringify(body), credentials: "same-origin" } : { credentials: "same-origin" };
+    var opts = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
     return fetch("/api/" + path, opts).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (data) {
         if (!r.ok) { var e = new Error(data.error || "Something went wrong."); e.status = r.status; throw e; }
@@ -203,8 +189,6 @@
 
   // ---------------------------------------------------------------- services
   function renderServices() {
-    renderAccount();
-    renderFollows();
     $("#country").innerHTML = catalog.countries.map(function (c) {
       return '<option value="' + c.code + '"' + (c.code === state.country ? " selected" : "") + ">" + esc(c.name) + "</option>";
     }).join("");
@@ -241,10 +225,6 @@
       state.services[t.dataset.price].price = t.value === "" ? null : Number(t.value); save(); renderServices();
     } else if (t.dataset.since) {
       state.services[t.dataset.since].since = t.value || null; save();
-    } else if (t.id === "alerts") {
-      api("account?action=alerts", { enabled: t.checked }).then(function (res) {
-        user = res.user; toast(user.email_alerts ? "Email reminders on." : "Email reminders off.");
-      }).catch(function (e) { t.checked = !t.checked; toast(e.message); });
     } else if (t.id === "import") {
       importBackup(t.files[0]); t.value = "";
     }
@@ -305,8 +285,6 @@
       "<div><b>" + esc(r.title) + "</b><span>" + (r.kind === "tv" ? "Series" : "Film") + (r.year ? " · " + r.year : "") + "</span></div>";
     $("#where").innerHTML = '<span class="status" style="padding:0">Looking up runtime and where it streams…</span>';
     $("#episodes-field").hidden = r.kind !== "tv";
-    $("#follow-field").hidden = r.kind !== "tv" || !user;
-    $("#follow").checked = isFollowing(r.id);
     $("#episodes").value = 1;
     $("#minutes").value = "";
     $("#date").value = today();
@@ -345,7 +323,6 @@
     $("#picked").innerHTML = "";
     $("#where").innerHTML = "";
     $("#episodes-field").hidden = true;
-    $("#follow-field").hidden = true;
     $("#title-field").hidden = false;
     $("#manual-title").value = $("#q").value;
     $("#minutes").value = "";
@@ -367,153 +344,11 @@
       title: title, minutes: minutes, service: $("#service").value, date: $("#date").value || today(),
       kind: picked.kind, tmdbId: picked.tmdbId || null, poster: picked.poster || null, episodes: episodes,
     });
-    if (picked.kind === "tv" && user) setFollow(picked.tmdbId, title, picked.poster, $("#follow").checked);
     save();
     sheet.close();
     toast("Added " + title + " (" + hours(minutes) + ")");
     show(current === "services" ? "overview" : current);
   });
-
-  // ---------------------------------------------------------------- account + sync
-  function renderAccount() {
-    var box = $("#account");
-    if (!user) {
-      box.innerHTML = "<h3>Sync across devices</h3><p class=\"fine\">Signed out, your data lives only in this browser. Sign in to keep it in your account and get email reminders.</p>" +
-        '<button class="btn small primary" data-action="signin">Sign in</button>';
-      return;
-    }
-    box.innerHTML =
-      '<div class="who"><span class="avatar">' + esc(initials(user.name || user.email)) + "</span>" +
-        "<div><b>" + esc(user.name) + '</b><div class="sync-state" id="sync-state">' + esc(user.email) + " · " + syncLabel() + "</div></div></div>" +
-      '<div class="row"><span>Email me reminders</span><label class="switch"><input type="checkbox" id="alerts"' + (user.email_alerts ? " checked" : "") + ' aria-label="Email me reminders"><span></span></label></div>' +
-      (user.is_owner ? '<div class="row"><span>Invite someone</span><button class="btn small" data-action="invite">Create invite link</button></div><div id="invite-out"></div>' : "") +
-      '<div class="row"><span></span><button class="btn small" data-action="signout">Sign out</button></div>';
-  }
-  function syncLabel() {
-    if (pushing || pushTimer) return "saving…";
-    return "synced";
-  }
-  function setSyncLabel() {
-    var el = $("#sync-state");
-    if (el && user) el.textContent = user.email + " · " + syncLabel();
-  }
-
-  function isFollowing(tmdbId) {
-    return (state.follows || []).some(function (f) { return f.tmdbId === tmdbId; });
-  }
-  function setFollow(tmdbId, title, poster, on) {
-    state.follows = (state.follows || []).filter(function (f) { return f.tmdbId !== tmdbId; });
-    if (on) state.follows.push({ tmdbId: tmdbId, title: title, poster: poster || null });
-  }
-  function renderFollows() {
-    var box = $("#follows");
-    box.hidden = !user;
-    if (!user) return;
-    var list = state.follows || [];
-    $("#follow-list").innerHTML = list.length ? list.map(function (f) {
-      return '<div class="entry">' + (f.poster ? '<img src="' + esc(f.poster) + '" alt="" loading="lazy">' : '<span class="ph"></span>') +
-        '<div class="t"><b>' + esc(f.title) + '</b><span>Series</span></div><button data-unfollow="' + f.tmdbId + '" aria-label="Stop following ' + esc(f.title) + '">✕</button></div>';
-    }).join("") : '<p class="fine">Nothing yet. When you add episodes of a series, tick “Email me when a new season starts”.</p>';
-  }
-
-  function schedulePush() {
-    if (!user || state.demo) return;
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(push, 700);
-    setSyncLabel();
-  }
-  function push() {
-    pushTimer = null;
-    if (pushing) { pushAgain = true; return; }
-    pushing = true;
-    setSyncLabel();
-    api("sync", { data: syncable(), version: sync.version }).then(function (res) {
-      sync = { userId: user.id, version: res.version }; saveSync();
-    }).catch(function (e) {
-      if (e.status === 409) { toast(e.message); return pull().then(function () { show(current); }); }
-      if (e.status === 401) { user = null; toast("You’ve been signed out."); show(current); return; }
-      toast("Couldn’t sync: " + e.message);
-    }).then(function () {
-      pushing = false;
-      setSyncLabel();
-      if (pushAgain) { pushAgain = false; push(); }
-    });
-  }
-  function pull() {
-    return api("sync").then(function (res) {
-      if (res.data) {
-        state = Object.assign(blank(), res.data, { demo: false, started: true });
-        sync = { userId: user.id, version: res.version }; saveSync();
-        save({ local: true });
-        return loadCatalog();
-      }
-      // First sign-in on this account: keep what's on this device (unless it's the sample).
-      if (state.demo) { state = Object.assign(blank(), { started: true }); save({ local: true }); }
-      sync = { userId: user.id, version: 0 }; saveSync();
-      if (state.log.length || activeServices().length) push();
-    });
-  }
-  function signedIn(u) {
-    user = u;
-    if (sync.userId !== u.id) sync = { userId: u.id, version: 0 };
-    return pull();
-  }
-
-  // account sheet
-  var accountSheet = $("#account-sheet");
-  var accountMode = "login";
-  function openAccount(mode, code) {
-    accountMode = mode || "login";
-    var reg = accountMode === "register";
-    $("#account-title").textContent = reg ? "Create your account" : "Sign in";
-    $("#account-intro").textContent = reg
-      ? "StreamWise accounts are invite-only. Paste the code from your invite link (or the setup code for the first account)."
-      : "Sign in to keep your services and history in sync across your devices.";
-    $("#name-field").hidden = !reg;
-    $("#code-field").hidden = !reg;
-    $("#acc-password").autocomplete = reg ? "new-password" : "current-password";
-    $("#account-submit").textContent = reg ? "Create account" : "Sign in";
-    $("#mode-toggle").textContent = reg ? "I already have an account" : "I have an invite";
-    $("#account-error").textContent = "";
-    if (code) $("#acc-code").value = code;
-    if (!accountSheet.open) accountSheet.showModal();
-    setTimeout(function () { (reg && !$("#acc-name").value ? $("#acc-name") : $("#acc-email")).focus(); }, 50);
-  }
-  $("#account-form").addEventListener("submit", function (ev) {
-    if (ev.submitter && ev.submitter.value !== "go") return;
-    ev.preventDefault();
-    var reg = accountMode === "register";
-    var code = $("#acc-code").value.trim();
-    var body = { email: $("#acc-email").value.trim(), password: $("#acc-password").value };
-    if (reg) {
-      body.name = $("#acc-name").value.trim();
-      if (code.length > 20) body.invite = code; else body.setup = code;
-    }
-    $("#account-submit").disabled = true;
-    $("#account-error").textContent = "";
-    api("account?action=" + (reg ? "register" : "login"), body).then(function (res) {
-      $("#acc-password").value = "";
-      accountSheet.close();
-      if (location.search) history.replaceState(null, "", location.pathname);
-      return signedIn(res.user).then(function () {
-        toast("Signed in as " + res.user.name);
-        state.started = true; save({ local: true });
-        show("overview");
-      });
-    }).catch(function (e) {
-      $("#account-error").textContent = e.message;
-    }).then(function () { $("#account-submit").disabled = false; });
-  });
-
-  function signOut() {
-    api("account?action=logout", {}).catch(function () {}).then(function () {
-      user = null;
-      sync = { userId: null, version: 0 }; saveSync();
-      state = blank(); save({ local: true });
-      toast("Signed out. This device no longer has your data.");
-      show("overview");
-    });
-  }
 
   // ---------------------------------------------------------------- backup / demo / reset
   function exportBackup() {
@@ -566,15 +401,14 @@
   }
 
   function reset() {
-    var where = user ? "on all your devices (it’s removed from your account too)" : "on this device";
-    if (!confirm("Delete all your services and everything you’ve logged " + where + "?")) return;
+    if (!confirm("Delete all your services and everything you’ve logged on this device?")) return;
     state = blank(); save();
     loadCatalog().then(function () { show("overview"); });
   }
 
   // ---------------------------------------------------------------- clicks
   document.addEventListener("click", function (ev) {
-    var el = ev.target.closest("[data-action], [data-tab], [data-goto], [data-delete], [data-pick], [data-unfollow]");
+    var el = ev.target.closest("[data-action], [data-tab], [data-goto], [data-delete], [data-pick]");
     if (!el) return;
     if (el.dataset.tab) return show(el.dataset.tab);
     if (el.dataset.goto) return show(el.dataset.goto);
@@ -583,11 +417,6 @@
       state.log = state.log.filter(function (e) { return e.id !== el.dataset.delete; });
       save(); renderLog();
       if (gone) toast("Removed " + gone.title);
-      return;
-    }
-    if (el.dataset.unfollow) {
-      setFollow(Number(el.dataset.unfollow), null, null, false);
-      save(); renderFollows();
       return;
     }
     if (el.dataset.pick) {
@@ -601,33 +430,12 @@
       case "manual": manual(); break;
       case "back": $("#step-details").hidden = true; $("#step-search").hidden = false; picked = null; break;
       case "export": exportBackup(); break;
-      case "signin": openAccount("login"); break;
-      case "toggle-mode": openAccount(accountMode === "login" ? "register" : "login"); break;
-      case "signout": signOut(); break;
-      case "invite":
-        api("account?action=invite", {}).then(function (res) {
-          var link = location.origin + "/?invite=" + encodeURIComponent(res.token);
-          $("#invite-out").innerHTML = '<input class="invite-link" readonly value="' + esc(link) + '" aria-label="Invite link"><p class="fine">Valid for 7 days, for one person.</p>';
-          $("#invite-out input").select();
-          if (navigator.clipboard) navigator.clipboard.writeText(link).then(function () { toast("Invite link copied."); }, function () {});
-        }).catch(function (e) { toast(e.message); });
-        break;
       case "reset": reset(); break;
     }
   });
 
   // ---------------------------------------------------------------- start
-  var params = new URLSearchParams(location.search);
-  loadCatalog().then(function () {
-    return api("account?action=me").then(function (res) {
-      if (res.user) return signedIn(res.user);
-      if (sync.userId) { sync = { userId: null, version: 0 }; saveSync(); }
-    }).catch(function () { /* sign-in not available on this server: stay local-only */ });
-  }).then(function () {
-    show("overview");
-    if (!user && params.get("invite")) openAccount("register", params.get("invite"));
-    else if (!user && params.has("setup")) openAccount("register");
-  }).catch(function () {
+  loadCatalog().then(function () { show("overview"); }).catch(function () {
     document.querySelector("main").innerHTML = '<p class="empty">StreamWise couldn’t start. Check your connection and reload.</p>';
   });
 })();

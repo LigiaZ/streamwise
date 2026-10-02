@@ -12,10 +12,6 @@
   <meta property="og:image" content="/img/icon-512.png">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="StreamWise">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
@@ -28,6 +24,7 @@
     <span class="brand">StreamWise</span>
     <span class="demo-pill" id="demo-pill" hidden>Sample data</span>
   </header>
+  <p class="notice">Browser demo · StreamWise is being built into a mobile app</p>
 
   <main id="main">
     <!-- WELCOME (first run) -->
@@ -39,7 +36,7 @@
         <button class="btn primary" data-action="start">Set up my services</button>
         <button class="btn" data-action="demo">Try it with sample data</button>
       </div>
-      <p class="fine">No account needed. Everything you log stays on this device.<br>Have an account? <button class="link" data-action="signin">Sign in to sync</button></p>
+      <p class="fine">No account. Everything you log stays on this device.<br>This is the browser demo. A mobile app version is in progress.</p>
     </section>
 
     <!-- OVERVIEW -->
@@ -57,18 +54,12 @@
 
     <!-- SERVICES -->
     <section class="view" id="view-services" hidden>
-      <div class="account" id="account"></div>
       <div class="view-head"><h2>Your services</h2></div>
       <label class="field">Country
         <select id="country"></select>
       </label>
       <p class="fine" id="price-note"></p>
       <div id="service-list" class="service-list"></div>
-      <div class="follows" id="follows" hidden>
-        <h3>Shows you follow</h3>
-        <p class="fine">You’ll get an email the week a new season starts, with a nudge to resubscribe if you’ve paused that service.</p>
-        <div id="follow-list"></div>
-      </div>
       <div class="data-tools">
         <h3>Your data</h3>
         <p class="fine">Stored only in this browser. Export a backup to move it to another device.</p>
@@ -114,7 +105,6 @@
       <label class="field" id="title-field" hidden>Title
         <input type="text" id="manual-title" maxlength="120">
       </label>
-      <label class="check" id="follow-field" hidden><input type="checkbox" id="follow"> Email me when a new season starts</label>
       <label class="field">Minutes
         <input type="number" id="minutes" min="1" max="20000" inputmode="numeric" required>
       </label>
@@ -128,34 +118,6 @@
         <button type="button" class="btn" data-action="back">Back</button>
         <button type="submit" class="btn primary" value="save" id="save-btn">Save</button>
       </div>
-    </div>
-  </form>
-</dialog>
-
-<!-- ACCOUNT SHEET -->
-<dialog class="sheet" id="account-sheet" aria-labelledby="account-title">
-  <form method="dialog" class="sheet-inner" id="account-form">
-    <div class="sheet-head">
-      <h2 id="account-title">Sign in</h2>
-      <button class="icon-btn" value="cancel" aria-label="Close">✕</button>
-    </div>
-    <p class="fine" id="account-intro">Sign in to keep your services and history in sync across your devices.</p>
-    <label class="field" id="name-field" hidden>Your name
-      <input type="text" id="acc-name" autocomplete="name" maxlength="60">
-    </label>
-    <label class="field">Email
-      <input type="email" id="acc-email" autocomplete="username" required>
-    </label>
-    <label class="field">Password
-      <input type="password" id="acc-password" autocomplete="current-password" minlength="10" required>
-    </label>
-    <label class="field" id="code-field" hidden>Invite or setup code
-      <input type="text" id="acc-code" autocomplete="off">
-    </label>
-    <p class="form-error" id="account-error" role="alert"></p>
-    <div class="row-buttons">
-      <button type="submit" class="btn primary" value="go" id="account-submit">Sign in</button>
-      <button type="button" class="link" data-action="toggle-mode" id="mode-toggle">I have an invite</button>
     </div>
   </form>
 </dialog>
